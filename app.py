@@ -9,7 +9,8 @@ def hello():
         'message': 'Hello from Python Flask!',
         'runtime': 'Python',
         'framework': 'Flask',
-        'status': 'running'
+        'status': 'running',
+        'health endpoint': '/health'
     }
 
 @app.route('/health')
