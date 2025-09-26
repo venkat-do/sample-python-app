@@ -10,7 +10,10 @@ def hello():
         'runtime': 'Python',
         'framework': 'Flask',
         'status': 'running',
-        'health endpoint': '/health'
+        'endpoints': {
+            'root': '/',
+            'health': '/health'
+        }
     }
 
 @app.route('/health')
