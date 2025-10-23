@@ -5,6 +5,7 @@ import json
 import os
 import psutil
 import time
+from .storage import storage
 
 @require_http_methods(["GET"])
 def home(request):
@@ -14,13 +15,15 @@ def home(request):
         'runtime': 'Python',
         'framework': 'Django',
         'status': 'running',
-        'server': 'Django Development Server',
+        'server': 'High Performance Django Server',
+        'database': 'In-Memory Storage (No DB)',
         'endpoints': {
             'root': '/',
             'health': '/health',
             'users': '/api/users',
             'stats': '/api/stats',
-            'echo': '/api/echo'
+            'echo': '/api/echo',
+            'items': '/api/items'
         }
     })
 
@@ -31,18 +34,27 @@ def health(request):
         'status': 'healthy',
         'service': 'sample-django-service',
         'framework': 'Django',
+        'storage': 'in-memory',
+        'database': 'none',
         'timestamp': time.time()
     })
 
-@require_http_methods(["GET"])
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
 def users(request):
-    """Sample users endpoint"""
-    users_data = [
-        {'id': 1, 'name': 'John Doe', 'email': 'john@example.com'},
-        {'id': 2, 'name': 'Jane Smith', 'email': 'jane@example.com'},
-        {'id': 3, 'name': 'Bob Johnson', 'email': 'bob@example.com'}
-    ]
-    return JsonResponse(users_data, safe=False)
+    """Users endpoint with in-memory storage"""
+    if request.method == 'GET':
+        users_data = storage.list('users')
+        return JsonResponse(users_data, safe=False)
+
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            user_id = storage.create('users', data)
+            user = storage.get('users', user_id)
+            return JsonResponse(user, status=201)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
 @require_http_methods(["GET"])
 def stats(request):
@@ -62,7 +74,12 @@ def stats(request):
             'cpu_percent': process.cpu_percent(),
             'create_time': process.create_time(),
             'timestamp': time.time(),
-            'server_type': 'Django Development Server'
+            'server_type': 'High Performance Django Server',
+            'storage': {
+                'type': 'in-memory',
+                'users_count': storage.count('users'),
+                'items_count': storage.count('items')
+            }
         })
     except Exception as e:
         # Fallback stats if psutil is not available
@@ -71,7 +88,12 @@ def stats(request):
             'framework': 'Django',
             'pid': os.getpid(),
             'timestamp': time.time(),
-            'server_type': 'Django Development Server',
+            'server_type': 'High Performance Django Server',
+            'storage': {
+                'type': 'in-memory',
+                'users_count': storage.count('users'),
+                'items_count': storage.count('items')
+            },
             'note': 'Basic stats - psutil not available'
         })
 
@@ -92,7 +114,7 @@ def echo(request):
             if request.content_type == 'application/json':
                 data = json.loads(request.body.decode('utf-8'))
             else:
-                data = request.POST.dict()
+                data = dict(request.POST)
 
             return JsonResponse({
                 'message': 'Echo response',
@@ -108,3 +130,46 @@ def echo(request):
                 'message': 'Could not parse request body',
                 'timestamp': time.time()
             }, status=400)
+
+# New endpoint for generic items CRUD operations
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def items_view(request):
+    """Items endpoint for CRUD operations"""
+    if request.method == "GET":
+        items = storage.list("items")
+        return JsonResponse({"items": items, "count": len(items)})
+
+    elif request.method == "POST":
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            item_id = storage.create("items", data)
+            item = storage.get("items", item_id)
+            return JsonResponse(item, status=201)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+@csrf_exempt
+@require_http_methods(["GET", "PUT", "DELETE"])
+def item_detail_view(request, item_id):
+    """Individual item operations"""
+    if request.method == "GET":
+        item = storage.get("items", item_id)
+        if item:
+            return JsonResponse(item)
+        return JsonResponse({"error": "Item not found"}, status=404)
+
+    elif request.method == "PUT":
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            if storage.update("items", item_id, data):
+                item = storage.get("items", item_id)
+                return JsonResponse(item)
+            return JsonResponse({"error": "Item not found"}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    elif request.method == "DELETE":
+        if storage.delete("items", item_id):
+            return JsonResponse({"message": "Item deleted"})
+        return JsonResponse({"error": "Item not found"}, status=404)
