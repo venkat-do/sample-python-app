@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Simple Django application entry point.
-Uses Django's built-in development server for simplicity.
+Uses Django's WSGI application directly to avoid path issues.
 """
 import os
 import sys
@@ -14,28 +14,50 @@ sys.path.insert(0, str(BASE_DIR / 'sampleproject'))
 # Set Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sampleproject.settings')
 
-# Import Django management utilities
+# Import Django utilities
+import django
 from django.core.management import execute_from_command_line
+from django.core.wsgi import get_wsgi_application
+
+def run_migrations():
+    """Run database migrations"""
+    print("Running database migrations...")
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(BASE_DIR / 'sampleproject')
+        execute_from_command_line(['manage.py', 'migrate', '--run-syncdb'])
+    finally:
+        os.chdir(original_cwd)
 
 def run_server():
-    """Run the Django development server"""
-    port = int(os.environ.get('PORT', 8000))
+    """Run the Django server using simple HTTP server"""
+    from wsgiref import simple_server
 
-    print(f"Starting Django development server on port {port}...")
-    os.chdir(BASE_DIR / 'sampleproject')
-    execute_from_command_line([
-        'manage.py', 'runserver', f'0.0.0.0:{port}'
-    ])
+    port = int(os.environ.get('PORT', 8000))
+    host = '0.0.0.0'
+
+    print(f"Starting Django server on {host}:{port}...")
+
+    # Get the WSGI application
+    application = get_wsgi_application()
+
+    # Create and run the server
+    server = simple_server.make_server(host, port, application)
+    print(f"Django development server is running at http://{host}:{port}/")
+    print("Quit the server with CONTROL-C.")
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nShutting down Django server...")
+        server.shutdown()
 
 if __name__ == '__main__':
-    # Ensure Django is properly configured
-    import django
+    # Setup Django
     django.setup()
 
-    # Run database migrations (creates tables if needed)
-    print("Running database migrations...")
-    os.chdir(BASE_DIR / 'sampleproject')
-    execute_from_command_line(['manage.py', 'migrate', '--run-syncdb'])
+    # Run migrations
+    run_migrations()
 
     # Start the server
     run_server()
