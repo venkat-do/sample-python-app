@@ -14,7 +14,7 @@ def home(request):
         'runtime': 'Python',
         'framework': 'Django',
         'status': 'running',
-        'concurrency': 'High - Django with Gunicorn',
+        'server': 'Django Development Server',
         'endpoints': {
             'root': '/',
             'health': '/health',
@@ -62,7 +62,7 @@ def stats(request):
             'cpu_percent': process.cpu_percent(),
             'create_time': process.create_time(),
             'timestamp': time.time(),
-            'concurrent_support': 'High with Gunicorn WSGI server'
+            'server_type': 'Django Development Server'
         })
     except Exception as e:
         # Fallback stats if psutil is not available
@@ -71,7 +71,7 @@ def stats(request):
             'framework': 'Django',
             'pid': os.getpid(),
             'timestamp': time.time(),
-            'concurrent_support': 'High with Gunicorn WSGI server',
+            'server_type': 'Django Development Server',
             'note': 'Basic stats - psutil not available'
         })
 
