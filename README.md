@@ -52,6 +52,22 @@ This application is designed for deployment on:
 - Google Cloud Run
 - Any container platform supporting Python/Django
 
+## High-performance Django app for load testing
+
+### Running with Gunicorn
+
+To support high RPS, run the app using gunicorn:
+
+```sh
+pip install -r requirements.txt
+cd sample-python-app
+export DJANGO_SETTINGS_MODULE=sampleproject.settings
+# Example: 8 workers, 16 threads each
+gunicorn app:application --workers 8 --threads 16 --bind 0.0.0.0:8000
+```
+
+Adjust workers/threads for your CPU. Gunicorn provides robust concurrency for load testing.
+
 ## API Examples
 
 ### Health Check
